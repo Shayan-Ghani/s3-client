@@ -1,2 +1,7 @@
-./tests
-./.scripts
+.env
+/s3client
+/s3client.exe
+tests/.work/
+tests/results/
+tests/downloads/
+.scripts/

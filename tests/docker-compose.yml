@@ -1,0 +1,66 @@
+# Local S3 server (RustFS) used only for testing s3client.
+# Credentials are throw-away local values.
+#
+#   docker compose -f tests/docker-compose.yml up -d rustfs
+#   docker compose -f tests/docker-compose.yml --profile tools run --rm createbucket
+#   docker compose -f tests/docker-compose.yml --profile tools down -v
+#
+# Fully containerised run on any Docker host (builds + tests the Linux binary inside a Go container):
+#   docker compose -f tests/docker-compose.yml --profile linux-test run --rm tester
+
+volumes:
+  rustfs-data:
+
+services:
+  rustfs:
+    # Pinned to the digest the results in RESULTS.md were taken with.
+    # Override with e.g. RUSTFS_IMAGE=rustfs/rustfs:latest to try a newer one.
+    image: ${RUSTFS_IMAGE:-rustfs/rustfs@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c}
+    container_name: s3client-test-rustfs
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin123
+    ports:
+      - "9000:9000"
+    volumes:
+      # objects survive `docker compose down`; `down -v` deletes them.
+      # Inside the container look at /data/test-bucket/<key>/ (xl.meta + part files).
+      - rustfs-data:/data
+
+  # One-shot job: creates "test-bucket" (retries until the server is ready, no-op if it exists)
+  createbucket:
+    image: ${AWSCLI_IMAGE:-amazon/aws-cli@sha256:ce44b800602264c12298bbf3399055a4cefdb9ed4a098abe564afe26e7071bce}
+    profiles: ["tools", "linux-test"]
+    depends_on:
+      - rustfs
+    environment:
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin123
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        until aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket test-bucket
+        || aws --endpoint-url http://rustfs:9000 s3 mb s3://test-bucket;
+        do echo "waiting for rustfs..."; sleep 2; done;
+        echo "bucket test-bucket ready"
+
+  # Linux test runner: builds the binary with Go and runs tests/run-tests.sh against rustfs.
+  tester:
+    image: ${GO_IMAGE:-golang:1.22-bookworm}
+    profiles: ["linux-test"]
+    depends_on:
+      createbucket:
+        condition: service_completed_successfully
+    working_dir: /src
+    volumes:
+      - ..:/src
+    environment:
+      IN_COMPOSE: "1"          # script skips docker steps and talks to the "rustfs" service
+      S3_HOST: rustfs
+      WORK: /tmp/s3work        # big files stay inside the container, not on the bind mount
+      BIG_MB: ${BIG_MB:-200}
+      GOFLAGS: -buildvcs=false
+    command: ["bash", "tests/run-tests.sh"]
