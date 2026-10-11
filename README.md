@@ -148,3 +148,4 @@ Flags go **before** the file names. Run `./s3client help` for the full list.
 ```bash
 go test ./...
 ```
+also see [test-against-rustfs](https://github.com/Shayan-Ghani/s3-client/tree/main/tests) for an integration test with a minIo like s3 compatible object storage that is setup using docker and a prebuilt `.env` and `test-bucket`.
