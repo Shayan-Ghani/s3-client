@@ -24,8 +24,8 @@ import (
 type fakeS3 struct {
 	mu       sync.Mutex
 	objects  map[string][]byte
-	parts    map[string]map[int][]byte // uploadId -> part -> data
-	failOnce int32                     // fail first attempt of this part number (after reading the body)
+	parts    map[string]map[int][]byte
+	failOnce int32 // part number whose first attempt fails after its body was read
 	failed   int32
 	aborted  int32
 }

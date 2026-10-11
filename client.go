@@ -67,7 +67,7 @@ func Dial(cfg Configs) (*Client, error) {
 		uploader: s3manager.NewUploader(sess, func(u *s3manager.Uploader) {
 			u.PartSize = partSize
 			u.Concurrency = cfg.S3Concurrency
-			u.LeavePartsOnError = false 
+			u.LeavePartsOnError = false
 			u.RequestOptions = []request.Option{abortEvenIfCancelled}
 		}),
 		downloader: s3manager.NewDownloader(sess, func(d *s3manager.Downloader) {
@@ -85,8 +85,6 @@ func abortEvenIfCancelled(r *request.Request) {
 	}
 }
 
-// Upload streams the file at path to bucket/key.
-// tr may be nil; if given it receives progress updates.
 func (c *Client) Upload(ctx context.Context, bucket, key, path string, public bool, tr *tracker) (*url.URL, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -141,7 +139,6 @@ func (c *Client) Download(ctx context.Context, bucket, key, destPath string, tr 
 	return os.Rename(tmp, destPath)
 }
 
-// Size returns the size in bytes of bucket/key.
 func (c *Client) Size(ctx context.Context, bucket, key string) (int64, error) {
 	out, err := c.s3.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
@@ -161,11 +158,8 @@ func (c *Client) Delete(ctx context.Context, bucket, key string) error {
 	return err
 }
 
-// ---- progress accounting at the HTTP layer ----------------------------------
-//
-// Counting bytes as they cross the HTTP transport is accurate regardless of how
-// the SDK reads the file (e.g. extra passes to compute checksums on plain-HTTP
-// endpoints would otherwise make a file-reader based progress bar run ahead).
+// Progress is counted at the HTTP layer: reading the file is not a reliable signal,
+// because the SDK may read it extra times (e.g. to hash it for plain-HTTP endpoints).
 
 type trackerKey struct{}
 
@@ -178,7 +172,7 @@ func (t *countingTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	}
 
 	switch req.Method {
-	case http.MethodPut: // PutObject / UploadPart
+	case http.MethodPut:
 		if req.Body != nil && req.Body != http.NoBody {
 			r2 := req.Clone(req.Context())
 			r2.Body = &countingBody{ReadCloser: req.Body, tr: tr, key: uploadChunkKey(req.URL)}
@@ -186,7 +180,7 @@ func (t *countingTransport) RoundTrip(req *http.Request) (*http.Response, error)
 		}
 		return t.base.RoundTrip(req)
 
-	case http.MethodGet: // GetObject (ranged)
+	case http.MethodGet:
 		key := downloadChunkKey(req.Header.Get("Range"))
 		resp, err := t.base.RoundTrip(req)
 		if err == nil && resp.StatusCode < 300 {

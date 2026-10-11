@@ -35,8 +35,6 @@ func newTracker(name string, total int64) *tracker {
 	return &tracker{name: name, total: total, parts: map[int64]int64{}}
 }
 
-// record notes that `n` bytes of chunk `key` have been transferred in the
-// current attempt.
 func (t *tracker) record(key, n int64) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -127,7 +125,6 @@ func (r *reporter) Start() {
 	}()
 }
 
-// Stop halts rendering and erases the progress line.
 func (r *reporter) Stop() {
 	close(r.stop)
 	<-r.done
@@ -162,7 +159,7 @@ func (r *reporter) render() {
 		switch t.getState() {
 		case stateFailed:
 			finished++
-			continue // excluded from totals
+			continue
 		case stateDone:
 			finished++
 		case stateActive:

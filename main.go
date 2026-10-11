@@ -107,7 +107,6 @@ func run() int {
 		return fail("connecting: %v", err)
 	}
 
-	
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -193,7 +192,6 @@ func planDownloads(ctx context.Context, c *Client, keys []string, outDir string)
 	return jobs, nil
 }
 
-// expandArgs expands wildcard patterns.
 func expandArgs(args []string) ([]string, error) {
 	var out []string
 	for _, a := range args {
