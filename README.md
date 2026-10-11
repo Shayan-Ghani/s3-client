@@ -37,6 +37,8 @@ If you have a binary (e.g. `s3client` for Linux, `s3client.exe` for Windows), no
 ```bash
 chmod +x s3client            # Linux/macOS only, once
 ./s3client big-file.iso
+
+.\s3client.exe big-file.iso # on windows
 ```
 
 ### Option B: build it (needs Go 1.20+)
